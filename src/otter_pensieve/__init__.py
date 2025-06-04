@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 from typing_extensions import override
 from otter.test_files import GradingResults
+from pydantic import BaseModel
 
 if TYPE_CHECKING:
 
@@ -20,6 +21,11 @@ else:
     from otter.plugins import AbstractOtterPlugin
 
 
+class PensieveOtterPluginConfig(BaseModel):
+    assignment_id: Union[str, None] = None
+    use_submission_pdf: bool = False
+
+
 class PensieveOtterPlugin(AbstractOtterPlugin):
     def __init__(
         self,
@@ -28,6 +34,7 @@ class PensieveOtterPlugin(AbstractOtterPlugin):
         plugin_config: dict[str, object],
     ):
         super().__init__(submission_path, submission_metadata, plugin_config)
+        _ = PensieveOtterPluginConfig.model_validate(plugin_config)
 
     @override
     def after_grading(self, results: GradingResults):
