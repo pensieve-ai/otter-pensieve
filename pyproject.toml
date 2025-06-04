@@ -1,0 +1,22 @@
+[project]
+name = "otter-pensieve"
+version = "0.4.0"
+description = "A plugin for `otter-grader` allowing the otter autograder to upload submissions to Pensieve on behalf of students."
+license = { text = "MIT" }
+authors = [
+    {name = "Marlon Rondinelli",email = "marlon@pensieve.com"}
+]
+readme = "README.md"
+requires-python = ">=3.9,<4.0"
+keywords = ["otter", "pensieve"]
+dependencies = [
+    "otter-grader>=6.1.3"
+]
+
+[tool.poetry]
+packages = [{include = "otter_pensieve", from = "src"}]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
