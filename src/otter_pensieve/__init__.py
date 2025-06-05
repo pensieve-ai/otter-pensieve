@@ -1,17 +1,19 @@
-import json
 import logging
 import os
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
+from urllib.parse import urlparse
 
-import jwt
+import requests
 from otter.test_files import GradingResults
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
 from typing_extensions import override
 
 if TYPE_CHECKING:
 
     class AbstractOtterPlugin(ABC):
+        submission_path: str
+
         def __init__(
             self,
             submission_path: str,
@@ -26,14 +28,7 @@ else:
     from otter.plugins import AbstractOtterPlugin
 
 
-class PensieveTokenSubmitClaim(BaseModel):
-    clazz_id: str
-    assignment_id: str
-    submitter_id: str
-
-
-class PensieveTokenPayload(BaseModel):
-    submit: PensieveTokenSubmitClaim
+logger = logging.getLogger(__file__)
 
 
 class PensieveOtterPluginConfig(BaseModel):
@@ -63,19 +58,24 @@ class PensieveOtterPlugin(AbstractOtterPlugin):
 """,
             end="\n\n",
         )
+        submission_url = os.getenv("SUBMISSION_URL")
+        if submission_url is None:
+            logger.warning("SUBMISSION_URL was None. Returning...")
+            return
+        pensieve_hostname = urlparse(submission_url).hostname
         pensieve_token_encoded = os.getenv("PENSIEVE_TOKEN")
         if pensieve_token_encoded is None:
+            logger.warning("PENSIEVE_TOKEN was None. Returning...")
             return
-        pensieve_token_decoded = cast(
-            object,
-            jwt.decode(pensieve_token_encoded, options={"verify_signature": False}),
+        submission_pdf_path = os.path.splitext(self.submission_path)[0] + ".pdf"
+        with open(submission_pdf_path, "rb") as f:
+            submission_pdf_bytes = f.read()
+        post_submission_response = requests.post(
+            f"https://{pensieve_hostname}/api/b2s/v1/programming-assignment/associated-paper-assignment/submissions",
+            headers={"Authorization": f"Bearer {pensieve_token_encoded}"},
+            data=submission_pdf_bytes,
         )
-        print(json.dumps(pensieve_token_decoded, indent=2), end="\n\n")
-        try:
-            pensieve_token_validated = PensieveTokenPayload.model_validate(
-                pensieve_token_decoded
-            )
-        except ValidationError as e:
-            logging.error(e)
-            return
-        print(pensieve_token_validated.model_dump_json(indent=2), end="\n\n")
+        if not post_submission_response.ok:
+            logger.error("Failed to upload submission to Pensieve.")
+            logger.error(f"Response code: {post_submission_response.status_code}")
+            logger.error(f"Response content: {post_submission_response.text}")
