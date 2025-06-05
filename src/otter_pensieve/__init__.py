@@ -93,3 +93,4 @@ class PensieveOtterPlugin(AbstractOtterPlugin):
             logger.error("Failed to upload submission to Pensieve.")
             logger.error(f"Response code: {post_submission_response.status_code}")
             logger.error(f"Response content: {post_submission_response.text}")
+        print("Successfully submitted submission PDF to Pensieve!", end="\n\n")
