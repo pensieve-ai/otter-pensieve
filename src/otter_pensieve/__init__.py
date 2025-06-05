@@ -80,6 +80,8 @@ class PensieveOtterPlugin(AbstractOtterPlugin):
             logger.warning("PENSIEVE_TOKEN was None. Returning...")
             return
         submission_pdf_path = os.path.splitext(self.submission_path)[0] + ".pdf"
+        if not os.path.exists(submission_pdf_path):
+            logger.warning("Submission PDF does not exist. Returning...")
         with open(submission_pdf_path, "rb") as f:
             submission_pdf_bytes = f.read()
         post_submission_response = requests.post(
