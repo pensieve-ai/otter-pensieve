@@ -80,11 +80,12 @@ class PensieveOtterPlugin(AbstractOtterPlugin):
             logger.warning("PENSIEVE_TOKEN was None. Returning...")
             return
         submission_pdf_path = os.path.splitext(self.submission_path)[0] + ".pdf"
-        if not os.path.exists(submission_pdf_path):
-            logger.warning("Submission PDF does not exist. Returning...")
+        try:
+            with open(submission_pdf_path, "rb") as f:
+                submission_pdf_bytes = f.read()
+        except BaseException:
+            logger.warning("Failed to read Submission PDF. Returning...")
             return
-        with open(submission_pdf_path, "rb") as f:
-            submission_pdf_bytes = f.read()
         post_submission_response = requests.post(
             f"https://{pensieve_hostname}/api/b2s/v1/programming-assignment/associated-paper-assignment/submissions",
             headers={"Authorization": f"Bearer {pensieve_token_encoded}"},
