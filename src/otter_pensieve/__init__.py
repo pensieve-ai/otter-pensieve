@@ -88,7 +88,10 @@ class PensieveOtterPlugin(AbstractOtterPlugin):
             return
         post_submission_response = requests.post(
             f"https://{pensieve_hostname}/api/b2s/v1/programming-assignment/associated-paper-assignment/submissions",
-            headers={"Authorization": f"Bearer {pensieve_token_encoded}"},
+            headers={
+                "Authorization": f"Bearer {pensieve_token_encoded}",
+                "Content-Type": "application/octet-stream",
+            },
             data=submission_pdf_bytes,
         )
         if not post_submission_response.ok:
