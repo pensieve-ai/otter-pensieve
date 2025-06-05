@@ -19,9 +19,9 @@ pip install otter-pensieve
    ```yaml
    # ASSIGNMENT CONFIG
    generate:
-     token: YOUR_TOKEN
-     course_id: 1234
-     assignment_id: 5678
+     token: YOUR_TOKEN # remove this
+     course_id: 1234 # remove this
+     assignment_id: 5678 # remove this
    ```
 
 2. Add `otter-pensieve` as a requirement for your otter notebook:
