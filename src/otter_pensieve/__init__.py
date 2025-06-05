@@ -65,7 +65,11 @@ class PensieveOtterPlugin(AbstractOtterPlugin):
         pensieve_token_encoded = os.getenv("PENSIEVE_TOKEN")
         if pensieve_token_encoded is None:
             return
-        pensieve_token_decoded = PensieveTokenSubmitClaim.model_validate(
-            jwt.decode(pensieve_token_encoded, options={"verify_signature": False})
+        pensieve_token_decoded = jwt.decode(
+            pensieve_token_encoded, options={"verify_signature": False}
         )
-        print(json.dumps(pensieve_token_decoded), end="\n\n")
+        print(json.dumps(pensieve_token_decoded, indent=2), end="\n\n")
+        pensieve_token_validated = PensieveTokenSubmitClaim.model_validate(
+            pensieve_token_decoded
+        )
+        print(pensieve_token_validated.model_dump_json(indent=2), end="\n\n")
