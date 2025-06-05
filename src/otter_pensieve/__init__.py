@@ -23,7 +23,9 @@ if TYPE_CHECKING:
         ): ...
 
         @abstractmethod
-        def during_assign(self, assignment: Assignment) -> None: ...
+        def during_generate(
+            self, otter_config: dict[str, object], assignment: Assignment
+        ) -> None: ...
 
         @abstractmethod
         def after_grading(self, results: GradingResults) -> None: ...
@@ -50,11 +52,13 @@ class PensieveOtterPlugin(AbstractOtterPlugin):
         _ = PensieveOtterPluginConfig.model_validate(plugin_config)
 
     @override
-    def during_assign(self, assignment: Assignment):
-        assignment.generate.pdf = True
+    def during_generate(
+        self, otter_config: dict[str, object], assignment: Assignment
+    ) -> None:
+        otter_config["pdf"] = True
 
     @override
-    def after_grading(self, results: GradingResults):
+    def after_grading(self, results: GradingResults) -> None:
         print(
             r"""
  _____  ______ _   _  _____ _____ ______ _    _ ______ 
