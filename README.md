@@ -57,5 +57,5 @@ When running `otter assign`, you **must not** provide `--username` or
 
 ## Links
 
-[PyPI Project](https://pypi.org/project/otter-pensieve)
-[GitHub Repo](https://github.com/pensieve-ai/otter-pensieve)
+* [PyPI Project](https://pypi.org/project/otter-pensieve)
+* [GitHub Repo](https://github.com/pensieve-ai/otter-pensieve)
