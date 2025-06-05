@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
 import requests
+from otter.assign.assignment import Assignment
 from otter.test_files import GradingResults
 from pydantic import BaseModel
 from typing_extensions import override
@@ -20,6 +21,9 @@ if TYPE_CHECKING:
             submission_metadata: dict[str, object],
             plugin_config: dict[str, object],
         ): ...
+
+        @abstractmethod
+        def during_assign(self, assignment: Assignment) -> None: ...
 
         @abstractmethod
         def after_grading(self, results: GradingResults) -> None: ...
@@ -44,6 +48,10 @@ class PensieveOtterPlugin(AbstractOtterPlugin):
     ):
         super().__init__(submission_path, submission_metadata, plugin_config)
         _ = PensieveOtterPluginConfig.model_validate(plugin_config)
+
+    @override
+    def during_assign(self, assignment: Assignment):
+        assignment.generate.pdf = True
 
     @override
     def after_grading(self, results: GradingResults):
