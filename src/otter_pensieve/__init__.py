@@ -1,11 +1,12 @@
 import json
+import logging
 import os
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import jwt
 from otter.test_files import GradingResults
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from typing_extensions import override
 
 if TYPE_CHECKING:
@@ -65,11 +66,16 @@ class PensieveOtterPlugin(AbstractOtterPlugin):
         pensieve_token_encoded = os.getenv("PENSIEVE_TOKEN")
         if pensieve_token_encoded is None:
             return
-        pensieve_token_decoded = jwt.decode(
-            pensieve_token_encoded, options={"verify_signature": False}
+        pensieve_token_decoded = cast(
+            object,
+            jwt.decode(pensieve_token_encoded, options={"verify_signature": False}),
         )
         print(json.dumps(pensieve_token_decoded, indent=2), end="\n\n")
-        pensieve_token_validated = PensieveTokenSubmitClaim.model_validate(
-            pensieve_token_decoded
-        )
+        try:
+            pensieve_token_validated = PensieveTokenPayload.model_validate(
+                pensieve_token_decoded
+            )
+        except ValidationError as e:
+            logging.error(e)
+            return
         print(pensieve_token_validated.model_dump_json(indent=2), end="\n\n")
