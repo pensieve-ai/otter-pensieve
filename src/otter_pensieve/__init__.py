@@ -114,6 +114,7 @@ class PensieveOtterPlugin(AbstractOtterPlugin):
             pensieve.post_submission_page_matching(
                 submission_id, [[2 * i, 2 * i + 1] for i in range(pdf_page_count // 2)]
             )
+            print("Successfully matched submission pages to questions on Pensieve.")
         else:
             logger.warning(
                 "Not able to match submission pages with questions on Pensieve due to assignment configuration."
