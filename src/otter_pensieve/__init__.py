@@ -23,6 +23,9 @@ if TYPE_CHECKING:
         ): ...
 
         @abstractmethod
+        def during_assign(self, assignment: Assignment) -> None: ...
+
+        @abstractmethod
         def during_generate(
             self, otter_config: dict[str, object], assignment: Assignment
         ) -> None: ...
@@ -50,6 +53,10 @@ class PensieveOtterPlugin(AbstractOtterPlugin):
     ):
         super().__init__(submission_path, submission_metadata, plugin_config)
         _ = PensieveOtterPluginConfig.model_validate(plugin_config)
+
+    @override
+    def during_assign(self, assignment: Assignment) -> None:
+        print("Current working directory:", os.getcwd())
 
     @override
     def during_generate(
