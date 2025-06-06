@@ -84,12 +84,12 @@ class PensieveOtterPlugin(AbstractOtterPlugin):
             print(repr(self._autograder_config))
         submission_url = os.getenv("SUBMISSION_URL")
         if submission_url is None:
-            logger.warning("SUBMISSION_URL was None. Returning...")
+            logger.warning("SUBMISSION_URL is None. Returning...")
             return
         pensieve_hostname = urlparse(submission_url).hostname
         pensieve_token_encoded = os.getenv("PENSIEVE_TOKEN")
         if pensieve_token_encoded is None:
-            logger.warning("PENSIEVE_TOKEN was None. Returning...")
+            logger.warning("PENSIEVE_TOKEN is None. Returning...")
             return
         submission_pdf_path = os.path.splitext(self.submission_path)[0] + ".pdf"
         try:
