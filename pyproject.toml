@@ -1,6 +1,6 @@
 [project]
 name = "otter-pensieve"
-version = "1.0.1"
+version = "1.0.2"
 description = "A plugin for `otter-grader` allowing the otter autograder to upload submission PDFs to Pensieve on students' behalfs."
 license = { text = "MIT" }
 authors = [
