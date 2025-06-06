@@ -23,18 +23,14 @@ if TYPE_CHECKING:
             plugin_config: dict[str, object],
         ): ...
 
-        @abstractmethod
         def during_assign(self, assignment: Assignment) -> None: ...
 
-        @abstractmethod
         def during_generate(
             self, otter_config: dict[str, object], assignment: Assignment
         ) -> None: ...
 
-        @abstractmethod
         def before_grading(self, config: AutograderConfig) -> None: ...
 
-        @abstractmethod
         def after_grading(self, results: GradingResults) -> None: ...
 
 else:
