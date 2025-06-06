@@ -1,11 +1,12 @@
 import logging
 import os
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 from urllib.parse import urlparse
 
+from otter.run import AutograderConfig
 import requests
-from otter.assign.assignment import Assignment
+from otter.assign import Assignment
 from otter.test_files import GradingResults
 from pydantic import BaseModel
 from typing_extensions import override
@@ -31,6 +32,9 @@ if TYPE_CHECKING:
         ) -> None: ...
 
         @abstractmethod
+        def before_grading(self, config: AutograderConfig) -> None: ...
+
+        @abstractmethod
         def after_grading(self, results: GradingResults) -> None: ...
 
 else:
@@ -45,6 +49,8 @@ class PensieveOtterPluginConfig(BaseModel):
 
 
 class PensieveOtterPlugin(AbstractOtterPlugin):
+    _autograder_config: Union[AutograderConfig, None]
+
     def __init__(
         self,
         submission_path: str,
@@ -53,16 +59,17 @@ class PensieveOtterPlugin(AbstractOtterPlugin):
     ):
         super().__init__(submission_path, submission_metadata, plugin_config)
         _ = PensieveOtterPluginConfig.model_validate(plugin_config)
-
-    @override
-    def during_assign(self, assignment: Assignment) -> None:
-        print("Current working directory:", os.getcwd())
+        self._autograder_config = None
 
     @override
     def during_generate(
         self, otter_config: dict[str, object], assignment: Assignment
     ) -> None:
         otter_config["pdf"] = True
+
+    @override
+    def before_grading(self, config: AutograderConfig) -> None:
+        self._autograder_config = config
 
     @override
     def after_grading(self, results: GradingResults) -> None:
@@ -77,6 +84,8 @@ class PensieveOtterPlugin(AbstractOtterPlugin):
 """,
             end="\n\n",
         )
+        if self._autograder_config is not None:
+            print(repr(self._autograder_config))
         submission_url = os.getenv("SUBMISSION_URL")
         if submission_url is None:
             logger.warning("SUBMISSION_URL was None. Returning...")
