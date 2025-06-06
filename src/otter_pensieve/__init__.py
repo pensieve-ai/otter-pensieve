@@ -4,12 +4,14 @@ from abc import ABC
 from typing import TYPE_CHECKING, Union
 from urllib.parse import urlparse
 
-from otter.run import AutograderConfig
 import requests
 from otter.assign import Assignment
+from otter.run import AutograderConfig
 from otter.test_files import GradingResults
 from pydantic import BaseModel
 from typing_extensions import override
+
+from otter_pensieve.client import Client
 
 if TYPE_CHECKING:
 
@@ -87,10 +89,14 @@ class PensieveOtterPlugin(AbstractOtterPlugin):
             logger.warning("SUBMISSION_URL is None. Returning...")
             return
         pensieve_hostname = urlparse(submission_url).hostname
-        pensieve_token_encoded = os.getenv("PENSIEVE_TOKEN")
-        if pensieve_token_encoded is None:
+        if pensieve_hostname is None:
+            logger.warning("Failed to parse hostname from SUBMISSION_URL. Returning...")
+            return
+        pensieve_token = os.getenv("PENSIEVE_TOKEN")
+        if pensieve_token is None:
             logger.warning("PENSIEVE_TOKEN is None. Returning...")
             return
+        pensieve = Client(pensieve_hostname, pensieve_token)
         submission_pdf_path = os.path.splitext(self.submission_path)[0] + ".pdf"
         try:
             with open(submission_pdf_path, "rb") as f:
@@ -98,16 +104,11 @@ class PensieveOtterPlugin(AbstractOtterPlugin):
         except BaseException:
             logger.warning("Failed to read Submission PDF. Returning...")
             return
-        post_submission_response = requests.post(
-            f"https://{pensieve_hostname}/api/b2s/v1/programming-assignment/associated-paper-assignment/submissions",
-            headers={
-                "Authorization": f"Bearer {pensieve_token_encoded}",
-                "Content-Type": "application/octet-stream",
-            },
-            data=submission_pdf_bytes,
-        )
-        if not post_submission_response.ok:
+        try:
+            _ = pensieve.post_submission(submission_pdf_bytes)
+        except requests.HTTPError as e:
             logger.error("Failed to upload submission to Pensieve.")
-            logger.error(f"Response code: {post_submission_response.status_code}")
-            logger.error(f"Response content: {post_submission_response.text}")
+            logger.error(f"Response code: {e.response.status_code}")
+            logger.error(f"Response content: {e.response.text}")
+            return
         print("Successfully submitted submission PDF to Pensieve!", end="\n\n")
