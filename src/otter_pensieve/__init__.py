@@ -8,7 +8,7 @@ import requests
 from otter.assign import Assignment
 from otter.run import AutograderConfig
 from otter.test_files import GradingResults
-from pydantic import BaseModel
+from pypdf import PdfReader
 from typing_extensions import override
 
 from otter_pensieve.client import Client
@@ -42,10 +42,6 @@ else:
 logger = logging.getLogger(__file__)
 
 
-class PensieveOtterPluginConfig(BaseModel):
-    use_submission_pdf: bool = False
-
-
 class PensieveOtterPlugin(AbstractOtterPlugin):
     _autograder_config: Union[AutograderConfig, None]
 
@@ -56,7 +52,6 @@ class PensieveOtterPlugin(AbstractOtterPlugin):
         plugin_config: dict[str, object],
     ):
         super().__init__(submission_path, submission_metadata, plugin_config)
-        _ = PensieveOtterPluginConfig.model_validate(plugin_config)
         self._autograder_config = None
 
     @override
@@ -82,8 +77,9 @@ class PensieveOtterPlugin(AbstractOtterPlugin):
 """,
             end="\n\n",
         )
-        if self._autograder_config is not None:
-            print(repr(self._autograder_config))
+        if self._autograder_config is None:
+            logging.error("Failed to capture Autograder config. Returning...")
+            return
         submission_url = os.getenv("SUBMISSION_URL")
         if submission_url is None:
             logger.warning("SUBMISSION_URL is None. Returning...")
@@ -105,10 +101,23 @@ class PensieveOtterPlugin(AbstractOtterPlugin):
             logger.warning("Failed to read Submission PDF. Returning...")
             return
         try:
-            _ = pensieve.post_submission(submission_pdf_bytes)
+            submission_id = pensieve.post_submission(submission_pdf_bytes)
+            print("Successfully submitted submission PDF to Pensieve!", end="\n\n")
         except requests.HTTPError as e:
             logger.error("Failed to upload submission to Pensieve.")
             logger.error(f"Response code: {e.response.status_code}")
             logger.error(f"Response content: {e.response.text}")
             return
-        print("Successfully submitted submission PDF to Pensieve!", end="\n\n")
+        if self._autograder_config.filtering and self._autograder_config.pagebreaks:
+            with PdfReader(submission_pdf_path) as reader:
+                pdf_page_count = len(reader.pages)
+            pensieve.post_submission_page_matching(
+                submission_id, [[2 * i, 2 * i + 1] for i in range(pdf_page_count // 2)]
+            )
+        else:
+            logger.warning(
+                "Not able to match submission pages with questions on Pensieve due to assignment configuration."
+            )
+            logger.warning(
+                "Set `filtering` and `pagebreaks` to `true` in your config to enable this behavior."
+            )
