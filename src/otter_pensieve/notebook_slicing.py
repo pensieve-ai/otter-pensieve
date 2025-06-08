@@ -29,7 +29,7 @@ def slice_notebook(notebook: nbformat.NotebookNode, question: ParsedQuestion):
         retval_cells.append(
             {
                 **copy.deepcopy(cell),
-                "source": cell_source[begin_line_index:end_line_index],
+                "source": "\n".join(cell_source[begin_line_index:end_line_index]),
             }
         )
-    return retval
+    return cast(nbformat.NotebookNode, nbformat.from_dict(retval))
