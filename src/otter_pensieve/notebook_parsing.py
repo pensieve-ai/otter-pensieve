@@ -23,7 +23,7 @@ class ParsedNotebook:
     questions: list[ParsedQuestion]
 
 
-class _NotebookCell(TypedDict):
+class NotebookCellNode(TypedDict):
     cell_type: Literal["markdown", "code", "raw"]
     source: Union[str, list[str]]
 
@@ -35,9 +35,11 @@ _END_QUESTION_PATTERN = re.compile(r"<!--\s*END QUESTION\s*-->")
 def parse_notebook(notebook: nbformat.NotebookNode) -> ParsedNotebook:
     questions = list[ParsedQuestion]()
     current_question: Union[ParsedQuestion, None] = None
-    for cell_index, cell in enumerate(cast(Sequence[_NotebookCell], notebook["cells"])):
+    for cell_index, cell in enumerate(
+        cast(Sequence[NotebookCellNode], notebook["cells"])
+    ):
         if cell["cell_type"] == "markdown":
-            source = _get_cell_source_as_list(cell)
+            source = get_cell_source_as_list(cell)
             if current_question is not None:
                 current_question.end.cell_index = cell_index
                 current_question.end.line_index = 0
@@ -59,7 +61,7 @@ def parse_notebook(notebook: nbformat.NotebookNode) -> ParsedNotebook:
     return ParsedNotebook(questions)
 
 
-def _get_cell_source_as_list(cell: _NotebookCell) -> list[str]:
+def get_cell_source_as_list(cell: NotebookCellNode) -> list[str]:
     source = cell["source"]
     if isinstance(source, str):
         return source.splitlines(keepends=True)
