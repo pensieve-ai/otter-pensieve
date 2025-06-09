@@ -1,17 +1,23 @@
+import copy
+import io
 import logging
 import os
 from abc import ABC
 from typing import TYPE_CHECKING, Union
 from urllib.parse import urlparse
 
+from pypdf import PdfReader
 import requests
 from otter.assign import Assignment
 from otter.run import AutograderConfig
 from otter.test_files import GradingResults
-from pypdf import PdfReader
 from typing_extensions import override
 
 from otter_pensieve.client import Client
+from otter_pensieve.notebook_parsing import parse_notebook
+from otter_pensieve.notebook_rendering import render_notebook
+from otter_pensieve.notebook_slicing import slice_notebook
+from otter_pensieve.pdf_merging import merge_pdfs
 
 if TYPE_CHECKING:
 
@@ -93,32 +99,40 @@ class PensieveOtterPlugin(AbstractOtterPlugin):
             logger.warning("PENSIEVE_TOKEN is None. Returning...")
             return
         pensieve = Client(pensieve_hostname, pensieve_token)
-        submission_pdf_path = os.path.splitext(self.submission_path)[0] + ".pdf"
-        try:
-            with open(submission_pdf_path, "rb") as f:
-                submission_pdf_bytes = f.read()
-        except BaseException:
-            logger.warning("Failed to read Submission PDF. Returning...")
+        notebook = results.notebook
+        if notebook is None:
+            logger.warning("results.notebook is None. Returning...")
             return
+        notebook = copy.deepcopy(notebook)
+        parsed_notebook = parse_notebook(notebook)
+        notebook_slices = [
+            slice_notebook(notebook, question) for question in parsed_notebook.questions
+        ]
+        notebook_slice_pdfs = [
+            render_notebook(notebook_slice) for notebook_slice in notebook_slices
+        ]
+        notebook_pdf = merge_pdfs(notebook_slice_pdfs)
         try:
-            submission_id = pensieve.post_submission(submission_pdf_bytes)
+            submission_id = pensieve.post_submission(notebook_pdf)
             print("Successfully submitted submission PDF to Pensieve!", end="\n\n")
         except requests.HTTPError as e:
             logger.error("Failed to upload submission to Pensieve.")
             logger.error(f"Response code: {e.response.status_code}")
             logger.error(f"Response content: {e.response.text}")
             return
-        if self._autograder_config.filtering and self._autograder_config.pagebreaks:
-            with PdfReader(submission_pdf_path) as reader:
-                pdf_page_count = len(reader.pages)
-            pensieve.post_submission_page_matching(
-                submission_id, [[2 * i, 2 * i + 1] for i in range(pdf_page_count // 2)]
-            )
-            print("Successfully matched submission pages to questions on Pensieve.")
-        else:
-            logger.warning(
-                "Not able to match submission pages with questions on Pensieve due to assignment configuration."
-            )
-            logger.warning(
-                "Set `filtering` and `pagebreaks` to `true` in your config to enable this behavior."
-            )
+        page_indices = list[list[int]]()
+        next_page_index = 0
+        for notebook_slice_pdf in notebook_slice_pdfs:
+            slice_page_indices = list[int]()
+            for i in range(len(PdfReader(io.BytesIO(notebook_slice_pdf)).pages)):
+                slice_page_indices.append(next_page_index)
+                next_page_index += 1
+            page_indices.append(slice_page_indices)
+        try:
+            pensieve.post_submission_page_matching(submission_id, page_indices)
+            print("Successfully matches questions with pages on Pensieve!", end="\n\n")
+        except requests.HTTPError as e:
+            logger.error("Failed to match questions with pages on Pensieve.")
+            logger.error(f"Response code: {e.response.status_code}")
+            logger.error(f"Response content: {e.response.text}")
+            return
