@@ -1,4 +1,3 @@
-from collections import Sequence
 from dataclasses import dataclass
 import re
 from typing import Literal, Union, cast
@@ -35,9 +34,7 @@ _END_QUESTION_PATTERN = re.compile(r"<!--\s*END QUESTION\s*-->")
 def parse_notebook(notebook: nbformat.NotebookNode) -> ParsedNotebook:
     questions = list[ParsedQuestion]()
     current_question: Union[ParsedQuestion, None] = None
-    for cell_index, cell in enumerate(
-        cast(Sequence[NotebookCellNode], notebook["cells"])
-    ):
+    for cell_index, cell in enumerate(cast(list[NotebookCellNode], notebook["cells"])):
         if cell["cell_type"] == "markdown":
             source = get_cell_source_as_list(cell)
             if current_question is not None:
