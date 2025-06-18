@@ -45,9 +45,6 @@ else:
     from otter.plugins import AbstractOtterPlugin
 
 
-logger = logging.getLogger(__file__)
-
-
 class PensieveOtterPlugin(AbstractOtterPlugin):
     _autograder_config: Union[AutograderConfig, None]
 
@@ -80,7 +77,7 @@ class PensieveOtterPlugin(AbstractOtterPlugin):
 |  ___/|  __| | . ` |\___ \  | | |  __| | |  | |  __|  
 | |    | |____| |\  |____) |_| |_| |____ \ \/ /| |____ 
 |_|    |______|_| \_|_____/|_____|______| \__/ |______|
-                                                 v1.4.8
+                                                 v1.4.9
 """,
             end="\n\n",
         )

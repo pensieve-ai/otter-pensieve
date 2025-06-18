@@ -9,9 +9,9 @@ def render_notebook(notebook: nbformat.NotebookNode) -> bytes:
 
     nbconvert.TemplateExporter.extra_template_basedirs = [str(TEMPLATE_DIR)]
     orig_template_name = nbconvert.TemplateExporter.template_name
-    nbconvert.TemplateExporter.template_name = "via_html"
+    nbconvert.TemplateExporter.template_name = "via_latex_xecjk"
     try:
-        exporter = cast(nbconvert.PDFExporter, nbconvert.WebPDFExporter())
+        exporter = cast(nbconvert.PDFExporter, nbconvert.PDFExporter())
         pdf, _ = nbconvert.export(exporter, notebook)
     finally:
         nbconvert.TemplateExporter.template_name = orig_template_name
