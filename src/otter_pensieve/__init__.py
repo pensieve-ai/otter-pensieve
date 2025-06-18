@@ -84,24 +84,24 @@ class PensieveOtterPlugin(AbstractOtterPlugin):
             end="\n\n",
         )
         if self._autograder_config is None:
-            logging.error("Failed to capture Autograder config. Returning...")
+            print("Failed to capture Autograder config. Returning...")
             return
         submission_url = os.getenv("SUBMISSION_URL")
         if submission_url is None:
-            logger.warning("SUBMISSION_URL is None. Returning...")
+            print("SUBMISSION_URL is None. Returning...")
             return
         pensieve_hostname = urlparse(submission_url).hostname
         if pensieve_hostname is None:
-            logger.warning("Failed to parse hostname from SUBMISSION_URL. Returning...")
+            print("Failed to parse hostname from SUBMISSION_URL. Returning...")
             return
         pensieve_token = os.getenv("PENSIEVE_TOKEN")
         if pensieve_token is None:
-            logger.warning("PENSIEVE_TOKEN is None. Returning...")
+            print("PENSIEVE_TOKEN is None. Returning...")
             return
         pensieve = Client(pensieve_hostname, pensieve_token)
         notebook = results.notebook
         if notebook is None:
-            logger.warning("results.notebook is None. Returning...")
+            print("results.notebook is None. Returning...")
             return
         notebook = copy.deepcopy(notebook)
         parsed_notebook = parse_notebook(notebook)
@@ -116,9 +116,9 @@ class PensieveOtterPlugin(AbstractOtterPlugin):
             submission_id = pensieve.post_submission(notebook_pdf)
             print("Successfully submitted submission PDF to Pensieve!", end="\n\n")
         except requests.HTTPError as e:
-            logger.error("Failed to upload submission to Pensieve.")
-            logger.error(f"Response code: {e.response.status_code}")
-            logger.error(f"Response content: {e.response.text}")
+            print("Failed to upload submission to Pensieve.")
+            print(f"Response code: {e.response.status_code}")
+            print(f"Response content: {e.response.text}")
             return
         page_indices = list[list[int]]()
         next_page_index = 0
@@ -132,7 +132,7 @@ class PensieveOtterPlugin(AbstractOtterPlugin):
             pensieve.post_submission_page_matching(submission_id, page_indices)
             print("Successfully matches questions with pages on Pensieve!", end="\n\n")
         except requests.HTTPError as e:
-            logger.error("Failed to match questions with pages on Pensieve.")
-            logger.error(f"Response code: {e.response.status_code}")
-            logger.error(f"Response content: {e.response.text}")
+            print("Failed to match questions with pages on Pensieve.")
+            print(f"Response code: {e.response.status_code}")
+            print(f"Response content: {e.response.text}")
             return
