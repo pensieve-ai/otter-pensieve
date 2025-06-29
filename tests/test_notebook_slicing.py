@@ -1,6 +1,6 @@
 import logging
-from typing import cast
 import unittest
+from typing import cast
 
 import nbformat
 
@@ -28,11 +28,22 @@ class TestNotebookSlicing(unittest.TestCase):
             cast(list[NotebookCellNode], notebook_slice["cells"])
             for notebook_slice in notebook_slices
         ]
+
         self.assertEqual(len(cells[0]), 3)
-        self.assertEqual(len(cells[0][0]["source"]), 5)
-        self.assertEqual(len(cells[0][1]["source"]), 1)
-        self.assertEqual(len(cells[0][2]["source"]), 1)
+        self.assertEqual(
+            cells[0][0]["source"],
+            "<!-- BEGIN QUESTION -->\n\n## Question 2\n\nDescribe how the function you wrote in **Question 1** works.",
+        )
+        self.assertEqual(
+            cells[0][1]["source"], "_Type your answer here, replacing this text._"
+        )
+        self.assertEqual(cells[0][2]["source"], "<!-- END QUESTION -->\n")
         self.assertEqual(len(cells[1]), 3)
-        self.assertEqual(len(cells[1][0]["source"]), 5)
-        self.assertEqual(len(cells[1][1]["source"]), 1)
-        self.assertEqual(len(cells[1][2]["source"]), 1)
+        self.assertEqual(
+            cells[1][0]["source"],
+            "<!-- BEGIN QUESTION -->\n\n## Question 3\n\nDescribe how you feel right now",
+        )
+        self.assertEqual(
+            cells[1][1]["source"], "_Type your answer here, replacing this text._"
+        )
+        self.assertEqual(cells[1][2]["source"], "<!-- END QUESTION -->\n")

@@ -1,2 +1,4 @@
 .python-version
 dist
+__pycache__
+tests/submission.pdf
