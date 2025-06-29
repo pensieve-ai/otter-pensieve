@@ -10,6 +10,12 @@ upload submission PDFs to Pensieve on students' behalfs.
 pip install otter-pensieve
 ```
 
+## Testing
+
+```bash
+python -m unittest
+```
+
 ## Configuration
 
 1. Remove any existing Gradescope configuration from your otter notebook. This
@@ -48,7 +54,6 @@ pip install otter-pensieve
 
    Note: `otter-pensieve` will only be able to make submissions when running on
    Pensieve infrastructure.
-
 
 ## Otter Assign
 

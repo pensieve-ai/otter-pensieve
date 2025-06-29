@@ -1,5 +1,6 @@
 import copy
 from typing import cast
+
 import nbformat
 
 from otter_pensieve.notebook_parsing import (
@@ -29,7 +30,7 @@ def slice_notebook(notebook: nbformat.NotebookNode, question: ParsedQuestion):
         retval_cells.append(
             {
                 **copy.deepcopy(cell),
-                "source": "\n".join(cell_source[begin_line_index:end_line_index]),
+                "source": "".join(cell_source[begin_line_index:end_line_index]),
             }
         )
     return cast(nbformat.NotebookNode, nbformat.from_dict(retval))
