@@ -3,9 +3,11 @@ import io
 import logging
 import os
 from abc import ABC
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union, cast
 from urllib.parse import urlparse
 
+import nbformat
+from otter.utils import NBFORMAT_VERSION
 from pypdf import PdfReader
 import requests
 from otter.assign import Assignment
@@ -58,17 +60,7 @@ class PensieveOtterPlugin(AbstractOtterPlugin):
         self._autograder_config = None
 
     @override
-    def during_generate(
-        self, otter_config: dict[str, object], assignment: Assignment
-    ) -> None:
-        otter_config["pdf"] = True
-
-    @override
     def before_grading(self, config: AutograderConfig) -> None:
-        self._autograder_config = config
-
-    @override
-    def after_grading(self, results: GradingResults) -> None:
         print(
             r"""
  _____  ______ _   _  _____ _____ ______ _    _ ______ 
@@ -81,9 +73,6 @@ class PensieveOtterPlugin(AbstractOtterPlugin):
 """,
             end="\n\n",
         )
-        if self._autograder_config is None:
-            print("Failed to capture Autograder config. Returning...")
-            return
         submission_url = os.getenv("SUBMISSION_URL")
         if submission_url is None:
             print("SUBMISSION_URL is None. Returning...")
@@ -97,10 +86,20 @@ class PensieveOtterPlugin(AbstractOtterPlugin):
             print("PENSIEVE_TOKEN is None. Returning...")
             return
         pensieve = Client(pensieve_hostname, pensieve_token)
-        notebook = results.notebook
-        if notebook is None:
-            print("results.notebook is None. Returning...")
+        submission_files = os.listdir("./")
+        submission_ipynb = None
+        for submission_file in submission_files:
+            if os.path.splitext(submission_file)[1] == ".ipynb":
+                submission_ipynb = submission_file
+                break
+        if submission_ipynb is None:
+            print("Failed to find submission ipynb. Returning...")
             return
+        with open(submission_ipynb) as submission_reader:
+            notebook = cast(
+                nbformat.NotebookNode,
+                nbformat.read(submission_reader, as_version=NBFORMAT_VERSION),
+            )
         notebook = copy.deepcopy(notebook)
         parsed_notebook = parse_notebook(notebook)
         notebook_slices = [
