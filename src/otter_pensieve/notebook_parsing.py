@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 import re
 from typing import Literal, Union, cast
-from typing_extensions import TypedDict
+from typing_extensions import NotRequired, TypedDict
 import nbformat
 
 
@@ -22,9 +22,17 @@ class ParsedNotebook:
     questions: list[ParsedQuestion]
 
 
+class NotebookCellOutputNode(TypedDict):
+    data: NotRequired[dict[str, Union[str, list[str]]]]
+    text: NotRequired[Union[str, list[str]]]
+    traceback: NotRequired[Union[str, list[str]]]
+
+
 class NotebookCellNode(TypedDict):
     cell_type: Literal["markdown", "code", "raw"]
+    metadata: NotRequired[dict[str, object]]
     source: Union[str, list[str]]
+    outputs: NotRequired[list[NotebookCellOutputNode]]
 
 
 _BEGIN_QUESTION_PATTERN = re.compile(r"<!--\s*BEGIN QUESTION\s*-->")
@@ -64,3 +72,7 @@ def get_cell_source_as_list(cell: NotebookCellNode) -> list[str]:
         return source.splitlines(keepends=True)
     else:
         return source
+
+
+def get_cell_source_as_str(cell: NotebookCellNode) -> str:
+    return "".join(get_cell_source_as_list(cell))
