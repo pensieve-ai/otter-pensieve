@@ -61,7 +61,7 @@ class Client:
         """
         response = requests.post(
             self._make_api_url(
-                "v1/programming-assignment/associated-paper-assignment/submission-page-matchings"
+                "v1/programming-assignment/associated-paper-assignment/submission-answers"
             ),
             headers={
                 "Authorization": f"Bearer {self._token}",
