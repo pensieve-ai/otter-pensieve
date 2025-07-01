@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import Literal, Union, cast
 
 import nbformat
+from pydantic import BaseModel
 from strip_ansi import strip_ansi
 
 from otter_pensieve.notebook_parsing import NotebookCellNode, get_cell_source_as_str
@@ -10,16 +11,19 @@ from otter_pensieve.notebook_parsing import NotebookCellNode, get_cell_source_as
 ExtractedAnswerContentType = Literal["text", "png"]
 
 
-@dataclass
-class ExtractedAnswerPart:
+class ExtractedAnswerPart(BaseModel):
     content_type: ExtractedAnswerContentType
     content: str
 
 
-def extract_answer(notebook: nbformat.NotebookNode) -> list[ExtractedAnswerPart]:
+class ExtractedAnswer(BaseModel):
+    parts: list[ExtractedAnswerPart]
+
+
+def extract_answer(notebook: nbformat.NotebookNode) -> ExtractedAnswer:
     all_cells = cast(list[NotebookCellNode], notebook["cells"])
     answer_cells = [cell for cell in all_cells if _is_otter_answer_cell(cell)]
-    retval = list[ExtractedAnswerPart]()
+    retval_parts = list[ExtractedAnswerPart]()
     for cell in answer_cells:
         with io.StringIO() as writer:
             cell_source = get_cell_source_as_str(cell).splitlines()
@@ -30,7 +34,7 @@ def extract_answer(notebook: nbformat.NotebookNode) -> list[ExtractedAnswerPart]
                 _ = writer.write("\n")
             if cell["cell_type"] == "code":
                 _ = writer.write("```")
-            retval.append(
+            retval_parts.append(
                 ExtractedAnswerPart(content_type="text", content=writer.getvalue())
             )
         if (cell_outputs := cell.get("outputs")) is not None:
@@ -42,7 +46,7 @@ def extract_answer(notebook: nbformat.NotebookNode) -> list[ExtractedAnswerPart]
                                 Union[str, None], output_data.get("image/png")
                             )
                         ) is not None:
-                            retval.append(
+                            retval_parts.append(
                                 ExtractedAnswerPart(
                                     content_type="png", content=png_data
                                 )
@@ -60,7 +64,7 @@ def extract_answer(notebook: nbformat.NotebookNode) -> list[ExtractedAnswerPart]
                                 if not ends_with_newline:
                                     _ = writer.write("\n")
                                 _ = writer.write("```")
-                                retval.append(
+                                retval_parts.append(
                                     ExtractedAnswerPart(
                                         content_type="text", content=writer.getvalue()
                                     )
@@ -77,7 +81,7 @@ def extract_answer(notebook: nbformat.NotebookNode) -> list[ExtractedAnswerPart]
                         if not ends_with_newline:
                             _ = writer.write("\n")
                         _ = writer.write("```")
-                        retval.append(
+                        retval_parts.append(
                             ExtractedAnswerPart(
                                 content_type="text", content=writer.getvalue()
                             )
@@ -95,12 +99,12 @@ def extract_answer(notebook: nbformat.NotebookNode) -> list[ExtractedAnswerPart]
                         if not ends_with_newline:
                             _ = writer.write("\n")
                         _ = writer.write("```")
-                        retval.append(
+                        retval_parts.append(
                             ExtractedAnswerPart(
                                 content_type="text", content=writer.getvalue()
                             )
                         )
-    return retval
+    return ExtractedAnswer(parts=retval_parts)
 
 
 def _is_otter_answer_cell(cell: NotebookCellNode) -> bool:

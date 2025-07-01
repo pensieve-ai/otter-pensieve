@@ -11,11 +11,11 @@ class TestAnswerExtraction(unittest.TestCase):
         notebook = load_submission_ipynb()
         parsed_notebook = parse_notebook(notebook)
         notebook_slice = slice_notebook(notebook, parsed_notebook.questions[0])
-        answer_parts = extract_answer(notebook_slice)
-        self.assertEqual(len(answer_parts), 1)
-        self.assertEqual(answer_parts[0].content_type, "text")
+        answer = extract_answer(notebook_slice)
+        self.assertEqual(len(answer.parts), 1)
+        self.assertEqual(answer.parts[0].content_type, "text")
         self.assertEqual(
-            answer_parts[0].content.strip(),
+            answer.parts[0].content.strip(),
             """
  _Type your answer here, replacing this text._
 """.strip(),

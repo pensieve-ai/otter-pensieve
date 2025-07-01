@@ -51,5 +51,23 @@ class Client:
         )
         response.raise_for_status()
 
+    def post_submission_answers(
+        self, submission_id: str, page_indices: list[list[int]]
+    ) -> None:
+        """
+        Update the page matching of a submission created by `post_submission`.
+        """
+        response = requests.post(
+            self._make_api_url(
+                "v1/programming-assignment/associated-paper-assignment/submission-page-matchings"
+            ),
+            headers={
+                "Authorization": f"Bearer {self._token}",
+                "Content-Type": "application/json",
+            },
+            json={"submission_id": submission_id, "page_indices": page_indices},
+        )
+        response.raise_for_status()
+
     def _make_api_url(self, endpoint_name: str) -> str:
         return f"https://{self._hostname}/api/b2s/{endpoint_name}"
