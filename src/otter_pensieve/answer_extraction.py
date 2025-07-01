@@ -24,7 +24,7 @@ def extract_answer(notebook: nbformat.NotebookNode) -> list[ExtractedAnswerPart]
         with io.StringIO() as writer:
             cell_source = get_cell_source_as_str(cell).splitlines()
             if cell["cell_type"] == "code":
-                _ = writer.write("```python\n")
+                _ = writer.write("`In:`\n\n```python\n")
             for line in cell_source:
                 _ = writer.write(line)
                 _ = writer.write("\n")
@@ -49,7 +49,7 @@ def extract_answer(notebook: nbformat.NotebookNode) -> list[ExtractedAnswerPart]
                             )
                         elif (text_data := output_data.get("text/plain")) is not None:
                             with io.StringIO() as writer:
-                                _ = writer.write("```\n")
+                                _ = writer.write("`Out:`\n\n```text\n")
                                 if isinstance(text_data, str):
                                     _ = writer.write(text_data)
                                     ends_with_newline = text_data.endswith("\n")
@@ -66,7 +66,7 @@ def extract_answer(notebook: nbformat.NotebookNode) -> list[ExtractedAnswerPart]
                                     )
                                 )
                     if (output_text := cell_output.get("text")) is not None:
-                        _ = writer.write("```text\n")
+                        _ = writer.write("`Out:`\n\n```text\n")
                         if isinstance(output_text, str):
                             _ = writer.write(output_text)
                             ends_with_newline = output_text.endswith("\n")
@@ -83,7 +83,7 @@ def extract_answer(notebook: nbformat.NotebookNode) -> list[ExtractedAnswerPart]
                             )
                         )
                     if (output_traceback := cell_output.get("traceback")) is not None:
-                        _ = writer.write("```text\n")
+                        _ = writer.write("`Out:`\n\n```text\n")
                         if isinstance(output_traceback, str):
                             _ = writer.write(strip_ansi(output_traceback))
                             ends_with_newline = output_traceback.endswith("\n")
