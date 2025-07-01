@@ -120,7 +120,7 @@ class PensieveOtterPlugin(AbstractOtterPlugin):
         next_page_index = 0
         for notebook_slice_pdf in notebook_slice_pdfs:
             slice_page_indices = list[int]()
-            for i in range(len(PdfReader(io.BytesIO(notebook_slice_pdf)).pages)):
+            for _ in range(len(PdfReader(io.BytesIO(notebook_slice_pdf)).pages)):
                 slice_page_indices.append(next_page_index)
                 next_page_index += 1
             page_indices.append(slice_page_indices)
