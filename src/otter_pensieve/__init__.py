@@ -14,6 +14,7 @@ from otter.run import AutograderConfig
 from otter.test_files import GradingResults
 from typing_extensions import override
 
+from otter_pensieve.answer_extraction import extract_answer
 from otter_pensieve.client import Client
 from otter_pensieve.notebook_parsing import parse_notebook
 from otter_pensieve.notebook_rendering import render_notebook
@@ -131,4 +132,12 @@ class PensieveOtterPlugin(AbstractOtterPlugin):
             print("Failed to match questions with pages on Pensieve.")
             print(f"Response code: {e.response.status_code}")
             print(f"Response content: {e.response.text}")
-            return
+        answers = [extract_answer(notebook_slice) for notebook_slice in notebook_slices]
+        try:
+            pensieve.post_submission_answers(submission_id, answers)
+            print("Successfully uploaded answers to Pensieve!", end="\n\n")
+        except requests.HTTPError as e:
+            print("Failed to match upload answers to Pensieve.")
+            print("Answers will be processed with the regular pipeline.")
+            print(f"Response code: {e.response.status_code}")
+            print(f"Response content: {e.response.text}")

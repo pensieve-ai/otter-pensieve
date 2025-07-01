@@ -1,5 +1,7 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
 import requests
+
+from otter_pensieve.answer_extraction import ExtractedAnswer
 
 
 class _PostSubmissionResponseBody(BaseModel):
@@ -52,7 +54,7 @@ class Client:
         response.raise_for_status()
 
     def post_submission_answers(
-        self, submission_id: str, page_indices: list[list[int]]
+        self, submission_id: str, answers: list[ExtractedAnswer]
     ) -> None:
         """
         Update the page matching of a submission created by `post_submission`.
@@ -65,7 +67,10 @@ class Client:
                 "Authorization": f"Bearer {self._token}",
                 "Content-Type": "application/json",
             },
-            json={"submission_id": submission_id, "page_indices": page_indices},
+            json={
+                "submission_id": submission_id,
+                "answers": TypeAdapter(list[ExtractedAnswer]).dump_python(answers),
+            },
         )
         response.raise_for_status()
 
