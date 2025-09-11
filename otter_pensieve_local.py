@@ -11,7 +11,17 @@ import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, TypedDict, Union, cast
+from typing import (
+    Any,
+    Dict,
+    List,
+    Literal,
+    NotRequired,
+    Optional,
+    TypedDict,
+    Union,
+    cast,
+)
 
 import nbconvert
 import nbformat
@@ -28,11 +38,11 @@ class NotebookCellOutputNode(TypedDict, total=False):
     traceback: Union[str, List[str]]
 
 
-class NotebookCellNode(TypedDict, total=False):
+class NotebookCellNode(TypedDict):
     cell_type: Literal["markdown", "code", "raw"]
-    metadata: Dict[str, Any]
-    source: Union[str, List[str]]
-    outputs: List[NotebookCellOutputNode]
+    metadata: NotRequired[dict[str, object]]
+    source: Union[str, list[str]]
+    outputs: NotRequired[list[NotebookCellOutputNode]]
 
 
 # Data structures
@@ -211,24 +221,14 @@ def slice_notebook(
 # Notebook rendering
 def render_notebook(notebook: nbformat.NotebookNode) -> bytes:
     """Render notebook to PDF using nbconvert with otter templates."""
-    try:
-        # Try to use otter templates if available
-        from otter.export.exporters.base_exporter import TEMPLATE_DIR
 
-        nbconvert.TemplateExporter.extra_template_basedirs = [str(TEMPLATE_DIR)]
-        orig_template_name = nbconvert.TemplateExporter.template_name
-        nbconvert.TemplateExporter.template_name = "via_html"
-    except ImportError:
-        # Fallback to default templates
-        orig_template_name = None
-
-    try:
-        exporter = WebPDFExporter()
-        pdf, _ = exporter.from_notebook_node(notebook)
-        return pdf
-    finally:
-        if orig_template_name is not None:
-            nbconvert.TemplateExporter.template_name = orig_template_name
+    # This template is a copy of otter html template, but with <pre> tags wrapped text wrapping
+    TEMPLATE_DIR = Path(__file__).parent / "templates"
+    nbconvert.TemplateExporter.extra_template_basedirs = [str(TEMPLATE_DIR)]
+    nbconvert.TemplateExporter.template_name = "via_html"
+    exporter = WebPDFExporter()
+    pdf, _ = exporter.from_notebook_node(notebook)
+    return pdf
 
 
 # PDF merging
@@ -243,6 +243,68 @@ def merge_pdfs(pdfs: List[bytes]) -> bytes:
     stream = io.BytesIO()
     writer.write(stream)
     return stream.getvalue()
+
+
+# Cell content extraction
+def extract_cell_content(cell: NotebookCellNode) -> Dict[str, Any]:
+    """Extract cell content including source and outputs."""
+    cell_content = {
+        "cell_type": cell["cell_type"],
+        "source": get_cell_source_as_str(cell),
+        "metadata": cell.get("metadata", {}),
+    }
+
+    # For code cells, extract outputs
+    if cell["cell_type"] == "code" and "outputs" in cell:
+        outputs = []
+        for output in cell["outputs"]:
+            output_data = {}
+
+            # Handle different output types
+            if "data" in output:
+                data = output["data"]
+                if "text/plain" in data:
+                    output_data["text/plain"] = data["text/plain"]
+                if "image/png" in data:
+                    output_data["image/png"] = (
+                        f"[PNG image, {len(data['image/png'])} bytes]"
+                    )
+                if "text/html" in data:
+                    output_data["text/html"] = data["text/html"]
+                if "application/json" in data:
+                    output_data["application/json"] = data["application/json"]
+
+            if "text" in output:
+                output_data["text"] = output["text"]
+
+            if "traceback" in output:
+                # Strip ANSI codes from traceback
+                if isinstance(output["traceback"], list):
+                    output_data["traceback"] = [
+                        strip_ansi(line) for line in output["traceback"]
+                    ]
+                else:
+                    output_data["traceback"] = strip_ansi(output["traceback"])
+
+            if "output_type" in output:
+                output_data["output_type"] = output["output_type"]
+
+            if output_data:
+                outputs.append(output_data)
+
+        cell_content["outputs"] = outputs
+
+    return cell_content
+
+
+def extract_question_cells(
+    notebook_slice: nbformat.NotebookNode,
+) -> List[Dict[str, Any]]:
+    """Extract all cells from a notebook slice with their content."""
+    cells = []
+    for cell in cast(List[NotebookCellNode], notebook_slice["cells"]):
+        cells.append(extract_cell_content(cell))
+    return cells
 
 
 # Answer extraction
@@ -280,8 +342,15 @@ def extract_answer(notebook: nbformat.NotebookNode) -> ExtractedAnswer:
                 writer = io.StringIO()
                 if (output_data := cell_output.get("data")) is not None:
                     if (png_data := output_data.get("image/png")) is not None:
+                        # Ensure png_data is a string
+                        if isinstance(png_data, list):
+                            png_data_str = "".join(png_data)
+                        else:
+                            png_data_str = png_data
                         retval_parts.append(
-                            ExtractedAnswerPart(content_type="png", content=png_data)
+                            ExtractedAnswerPart(
+                                content_type="png", content=png_data_str
+                            )
                         )
                     elif (text_data := output_data.get("text/plain")) is not None:
                         writer.write("`Out:`\n\n```text\n")
@@ -390,6 +459,7 @@ def process_notebook(
     # Process each question
     notebook_slices = []
     answers = []
+    question_cells = []
 
     for i, question in enumerate(parsed_notebook.questions):
         if verbose:
@@ -398,6 +468,10 @@ def process_notebook(
         # Slice notebook for this question
         notebook_slice = slice_notebook(notebook, question)
         notebook_slices.append(notebook_slice)
+
+        # Extract cells for this question
+        cells = extract_question_cells(notebook_slice)
+        question_cells.append(cells)
 
         # Extract answer
         answer = extract_answer(notebook_slice)
@@ -444,6 +518,7 @@ def process_notebook(
                     "line_index": q.begin.line_index,
                 },
                 "end": {"cell_index": q.end.cell_index, "line_index": q.end.line_index},
+                "cells": question_cells[i],
             }
             for i, q in enumerate(parsed_notebook.questions)
         ],
