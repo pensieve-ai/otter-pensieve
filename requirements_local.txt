@@ -1,0 +1,7 @@
+# Core requirements for otter_pensieve_local.py
+nbformat>=5.0.0
+nbconvert>=6.0.0
+pypdf>=3.0.0
+pydantic>=2.0.0
+strip-ansi==0.1.1
+weasyprint>=60.0

@@ -1,0 +1,87 @@
+{
+  "notebook_path": "/Users/qria/Downloads/test-labs/columbia Yi/Sample Submissions/Exercise 2 Solution/Exercise 2.ipynb",
+  "pdf_path": "/Users/qria/otter-pensieve/Exercise 2.pdf",
+  "num_questions": 4,
+  "questions": [
+    {
+      "index": 0,
+      "begin": {
+        "cell_index": 2,
+        "line_index": 0
+      },
+      "end": {
+        "cell_index": 8,
+        "line_index": 0
+      }
+    },
+    {
+      "index": 1,
+      "begin": {
+        "cell_index": 8,
+        "line_index": 0
+      },
+      "end": {
+        "cell_index": 13,
+        "line_index": 0
+      }
+    },
+    {
+      "index": 2,
+      "begin": {
+        "cell_index": 13,
+        "line_index": 0
+      },
+      "end": {
+        "cell_index": 17,
+        "line_index": 0
+      }
+    },
+    {
+      "index": 3,
+      "begin": {
+        "cell_index": 17,
+        "line_index": 0
+      },
+      "end": {
+        "cell_index": 21,
+        "line_index": 0
+      }
+    }
+  ],
+  "page_indices": [
+    [
+      0
+    ],
+    [
+      1
+    ],
+    [
+      2
+    ],
+    [
+      3
+    ]
+  ],
+  "answers": [
+    {
+      "question_index": 0,
+      "num_parts": 0,
+      "parts": []
+    },
+    {
+      "question_index": 1,
+      "num_parts": 0,
+      "parts": []
+    },
+    {
+      "question_index": 2,
+      "num_parts": 0,
+      "parts": []
+    },
+    {
+      "question_index": 3,
+      "num_parts": 0,
+      "parts": []
+    }
+  ]
+}
