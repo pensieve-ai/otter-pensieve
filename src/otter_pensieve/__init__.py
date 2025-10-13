@@ -6,12 +6,12 @@ from typing import TYPE_CHECKING, Union, cast
 from urllib.parse import urlparse
 
 import nbformat
-from otter.utils import NBFORMAT_VERSION
-from pypdf import PdfReader
 import requests
 from otter.assign import Assignment
 from otter.run import AutograderConfig
 from otter.test_files import GradingResults
+from otter.utils import NBFORMAT_VERSION
+from pypdf import PdfReader
 from typing_extensions import override
 
 from otter_pensieve.answer_extraction import extract_answer
@@ -63,16 +63,32 @@ class PensieveOtterPlugin(AbstractOtterPlugin):
     def before_grading(self, config: AutograderConfig) -> None:
         print(
             r"""
- _____  ______ _   _  _____ _____ ______ _    _ ______ 
+ _____  ______ _   _  _____ _____ ______ _    _ ______
 |  __ \|  ____| \ | |/ ____|_   _|  ____| |  | |  ____|
-| |__) | |__  |  \| | (___   | | | |__  | |  | | |__   
-|  ___/|  __| | . ` |\___ \  | | |  __| | |  | |  __|  
-| |    | |____| |\  |____) |_| |_| |____ \ \/ /| |____ 
+| |__) | |__  |  \| | (___   | | | |__  | |  | | |__
+|  ___/|  __| | . ` |\___ \  | | |  __| | |  | |  __|
+| |    | |____| |\  |____) |_| |_| |____ \ \/ /| |____
 |_|    |______|_| \_|_____/|_____|______| \__/ |______|
                                                  v1.5.0
 """,
             end="\n\n",
         )
+
+        # Monkey patch nbconvert to use synchronous kernel manager to circumvent this:
+        # https://github.com/ucbds-infra/otter-grader/issues/755
+        print("Monkey patching execute preprocessor...")
+        try:
+            from jupyter_client.manager import KernelManager
+            from nbconvert.preprocessors import ExecutePreprocessor
+
+            ExecutePreprocessor.kernel_manager_class = KernelManager  # type: ignore
+        except ImportError:
+            print(
+                "Skipping monkey patching execute preprocessor. Missing dependencies."
+            )
+        except Exception as e:
+            print("Failed to monkey patch execute preprocessor.")
+            print(f"Error: {e}")
         submission_url = os.getenv("SUBMISSION_URL")
         if submission_url is None:
             print("SUBMISSION_URL is None. Returning...")
