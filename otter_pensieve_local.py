@@ -26,7 +26,6 @@ from typing import (
 import nbconvert
 import nbformat
 from nbconvert import WebPDFExporter
-from pydantic import BaseModel
 from pypdf import PdfReader, PdfWriter
 from strip_ansi import strip_ansi
 
@@ -63,18 +62,6 @@ class ParsedNotebook:
     questions: List[ParsedQuestion]
 
 
-ExtractedAnswerContentType = Literal["text", "png"]
-
-
-class ExtractedAnswerPart(BaseModel):
-    content_type: ExtractedAnswerContentType
-    content: str
-
-
-class ExtractedAnswer(BaseModel):
-    parts: List[ExtractedAnswerPart]
-
-
 # Patterns for parsing
 # Original otter format with HTML comments
 _BEGIN_QUESTION_PATTERN = re.compile(r"<!--\s*BEGIN QUESTION\s*-->")
@@ -82,7 +69,7 @@ _END_QUESTION_PATTERN = re.compile(r"<!--\s*END QUESTION\s*-->")
 
 # Alternative format with markdown headers (# Q1, # Q2, ## Q3, etc.)
 # Matches any number of # followed by Q and digits, optionally followed by more text
-_QUESTION_HEADER_PATTERN = re.compile(r"^#+\s*Q\d+", re.MULTILINE)
+_QUESTION_HEADER_PATTERN = re.compile(r"^#+\s*(Q|Question)\s*\d+", re.MULTILINE)
 
 
 # Helper functions
@@ -245,114 +232,59 @@ def merge_pdfs(pdfs: List[bytes]) -> bytes:
     return stream.getvalue()
 
 
-# Cell content extraction
-def extract_cell_content(cell: NotebookCellNode) -> Dict[str, Any]:
-    """Extract cell content including source and outputs."""
-    cell_content = {
-        "cell_type": cell["cell_type"],
-        "source": get_cell_source_as_str(cell),
-        "metadata": cell.get("metadata", {}),
-    }
-
-    # For code cells, extract outputs
-    if cell["cell_type"] == "code" and "outputs" in cell:
-        outputs = []
-        for output in cell["outputs"]:
-            output_data = {}
-
-            # Handle different output types
-            if "data" in output:
-                data = output["data"]
-                if "text/plain" in data:
-                    output_data["text/plain"] = data["text/plain"]
-                if "image/png" in data:
-                    output_data["image/png"] = (
-                        f"[PNG image, {len(data['image/png'])} bytes]"
-                    )
-                if "text/html" in data:
-                    output_data["text/html"] = data["text/html"]
-                if "application/json" in data:
-                    output_data["application/json"] = data["application/json"]
-
-            if "text" in output:
-                output_data["text"] = output["text"]
-
-            if "traceback" in output:
-                # Strip ANSI codes from traceback
-                if isinstance(output["traceback"], list):
-                    output_data["traceback"] = [
-                        strip_ansi(line) for line in output["traceback"]
-                    ]
-                else:
-                    output_data["traceback"] = strip_ansi(output["traceback"])
-
-            if "output_type" in output:
-                output_data["output_type"] = output["output_type"]
-
-            if output_data:
-                outputs.append(output_data)
-
-        cell_content["outputs"] = outputs
-
-    return cell_content
+# Cell formatting functions
 
 
-def extract_question_cells(
+def format_cells_as_answer_parts(
     notebook_slice: nbformat.NotebookNode,
 ) -> List[Dict[str, Any]]:
-    """Extract all cells from a notebook slice with their content."""
-    cells = []
-    for cell in cast(List[NotebookCellNode], notebook_slice["cells"]):
-        cells.append(extract_cell_content(cell))
-    return cells
+    """Format all cells from a notebook slice in the answer format."""
+    formatted_cells = []
+    all_cells = cast(List[NotebookCellNode], notebook_slice["cells"])
 
+    for cell in all_cells:
+        # Skip empty cells
+        if not get_cell_source_as_str(cell).strip():
+            continue
 
-# Answer extraction
-def _is_otter_answer_cell(cell: NotebookCellNode) -> bool:
-    """Check if cell is marked as an otter answer cell."""
-    cell_metadata = cell.get("metadata", {})
-    cell_tags = cell_metadata.get("tags", [])
-    return "otter_answer_cell" in cell_tags
+        cell_parts = []
 
-
-def extract_answer(notebook: nbformat.NotebookNode) -> ExtractedAnswer:
-    """Extract answers from cells marked with otter_answer_cell tag."""
-    all_cells = cast(List[NotebookCellNode], notebook["cells"])
-    answer_cells = [cell for cell in all_cells if _is_otter_answer_cell(cell)]
-    retval_parts = []
-
-    for cell in answer_cells:
         # Add cell source
         writer = io.StringIO()
         cell_source = get_cell_source_as_str(cell).splitlines()
+
         if cell["cell_type"] == "code":
             writer.write("`In:`\n\n```python\n")
+        elif cell["cell_type"] == "markdown":
+            writer.write("`Markdown:`\n\n")
+
         for line in cell_source:
             writer.write(line)
             writer.write("\n")
+
         if cell["cell_type"] == "code":
             writer.write("```")
-        retval_parts.append(
-            ExtractedAnswerPart(content_type="text", content=writer.getvalue())
-        )
 
-        # Add cell outputs
-        if (cell_outputs := cell.get("outputs")) is not None:
+        cell_parts.append({"content_type": "text", "content": writer.getvalue()})
+
+        # Add cell outputs for code cells
+        if (
+            cell["cell_type"] == "code"
+            and (cell_outputs := cell.get("outputs")) is not None
+        ):
             for cell_output in cell_outputs:
-                writer = io.StringIO()
                 if (output_data := cell_output.get("data")) is not None:
                     if (png_data := output_data.get("image/png")) is not None:
-                        # Ensure png_data is a string
+                        # Store actual PNG data
                         if isinstance(png_data, list):
                             png_data_str = "".join(png_data)
                         else:
                             png_data_str = png_data
-                        retval_parts.append(
-                            ExtractedAnswerPart(
-                                content_type="png", content=png_data_str
-                            )
+                        cell_parts.append(
+                            {"content_type": "png", "content": png_data_str}
                         )
                     elif (text_data := output_data.get("text/plain")) is not None:
+                        writer = io.StringIO()
                         writer.write("`Out:`\n\n```text\n")
                         if isinstance(text_data, str):
                             writer.write(text_data)
@@ -364,10 +296,8 @@ def extract_answer(notebook: nbformat.NotebookNode) -> ExtractedAnswer:
                         if not ends_with_newline:
                             writer.write("\n")
                         writer.write("```")
-                        retval_parts.append(
-                            ExtractedAnswerPart(
-                                content_type="text", content=writer.getvalue()
-                            )
+                        cell_parts.append(
+                            {"content_type": "text", "content": writer.getvalue()}
                         )
 
                 if (output_text := cell_output.get("text")) is not None:
@@ -383,10 +313,8 @@ def extract_answer(notebook: nbformat.NotebookNode) -> ExtractedAnswer:
                     if not ends_with_newline:
                         writer.write("\n")
                     writer.write("```")
-                    retval_parts.append(
-                        ExtractedAnswerPart(
-                            content_type="text", content=writer.getvalue()
-                        )
+                    cell_parts.append(
+                        {"content_type": "text", "content": writer.getvalue()}
                     )
 
                 if (output_traceback := cell_output.get("traceback")) is not None:
@@ -403,13 +331,20 @@ def extract_answer(notebook: nbformat.NotebookNode) -> ExtractedAnswer:
                     if not ends_with_newline:
                         writer.write("\n")
                     writer.write("```")
-                    retval_parts.append(
-                        ExtractedAnswerPart(
-                            content_type="text", content=writer.getvalue()
-                        )
+                    cell_parts.append(
+                        {"content_type": "text", "content": writer.getvalue()}
                     )
 
-    return ExtractedAnswer(parts=retval_parts)
+        # Add formatted cell to the list
+        formatted_cells.append(
+            {
+                "cell_type": cell["cell_type"],
+                "metadata": cell.get("metadata", {}),
+                "parts": cell_parts,
+            }
+        )
+
+    return formatted_cells
 
 
 # Main processing function
@@ -458,8 +393,7 @@ def process_notebook(
 
     # Process each question
     notebook_slices = []
-    answers = []
-    question_cells = []
+    question_formatted_cells = []
 
     for i, question in enumerate(parsed_notebook.questions):
         if verbose:
@@ -469,13 +403,9 @@ def process_notebook(
         notebook_slice = slice_notebook(notebook, question)
         notebook_slices.append(notebook_slice)
 
-        # Extract cells for this question
-        cells = extract_question_cells(notebook_slice)
-        question_cells.append(cells)
-
-        # Extract answer
-        answer = extract_answer(notebook_slice)
-        answers.append(answer)
+        # Format cells for this question
+        formatted_cells = format_cells_as_answer_parts(notebook_slice)
+        question_formatted_cells.append(formatted_cells)
 
     # Render PDFs
     if verbose:
@@ -518,27 +448,11 @@ def process_notebook(
                     "line_index": q.begin.line_index,
                 },
                 "end": {"cell_index": q.end.cell_index, "line_index": q.end.line_index},
-                "cells": question_cells[i],
+                "formatted_cells": question_formatted_cells[i],
             }
             for i, q in enumerate(parsed_notebook.questions)
         ],
         "page_indices": page_indices,
-        "answers": [
-            {
-                "question_index": i,
-                "num_parts": len(answer.parts),
-                "parts": [
-                    {
-                        "content_type": part.content_type,
-                        "content": part.content
-                        if part.content_type == "text"
-                        else f"[PNG image, {len(part.content)} bytes]",
-                    }
-                    for part in answer.parts
-                ],
-            }
-            for i, answer in enumerate(answers)
-        ],
     }
 
     # Save metadata
@@ -551,7 +465,7 @@ def process_notebook(
         "pdf": final_pdf,
         "questions": parsed_notebook.questions,
         "page_indices": page_indices,
-        "answers": answers,
+        "formatted_cells": question_formatted_cells,
         "metadata_path": output_metadata_path,
         "pdf_path": output_pdf_path,
     }
