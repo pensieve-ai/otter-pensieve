@@ -2,6 +2,7 @@ import copy
 import io
 import os
 from abc import ABC
+from importlib import metadata
 from typing import TYPE_CHECKING, Union, cast
 from urllib.parse import urlparse
 
@@ -20,6 +21,8 @@ from otter_pensieve.notebook_parsing import parse_notebook
 from otter_pensieve.notebook_rendering import render_notebook
 from otter_pensieve.notebook_slicing import slice_notebook
 from otter_pensieve.pdf_merging import merge_pdfs
+
+__version__ = metadata.version("otter-pensieve")
 
 if TYPE_CHECKING:
 
@@ -62,14 +65,14 @@ class PensieveOtterPlugin(AbstractOtterPlugin):
     @override
     def before_grading(self, config: AutograderConfig) -> None:
         print(
-            r"""
+            rf"""
  _____  ______ _   _  _____ _____ ______ _    _ ______
 |  __ \|  ____| \ | |/ ____|_   _|  ____| |  | |  ____|
 | |__) | |__  |  \| | (___   | | | |__  | |  | | |__
 |  ___/|  __| | . ` |\___ \  | | |  __| | |  | |  __|
 | |    | |____| |\  |____) |_| |_| |____ \ \/ /| |____
 |_|    |______|_| \_|_____/|_____|______| \__/ |______|
-                                                 v1.5.0
+                                                 v{__version__}
 """,
             end="\n\n",
         )
