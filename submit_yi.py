@@ -36,12 +36,14 @@ class SubmissionClient:
         base_url: str = "https://api.pensieve.co/api/b2s/v1/external-client",
         max_parallel: int = 5,
         verbose: bool = False,
+        skip_questions: int = 0,
     ):
         self.api_key = api_key
         self.clazz_id = clazz_id
         self.assignment_id = assignment_id
         self.base_url = base_url
         self.max_parallel = max_parallel
+        self.skip_questions = skip_questions
 
         # Setup logging
         log_level = logging.DEBUG if verbose else logging.INFO
@@ -251,6 +253,9 @@ class SubmissionClient:
 
             # Step 2: Submit page matchings
             page_indices = metadata.get("page_indices", [])
+            # Skip first N questions if requested
+            if self.skip_questions > 0 and len(page_indices) > self.skip_questions:
+                page_indices = page_indices[self.skip_questions:]
             success = await loop.run_in_executor(
                 None,
                 self.submit_page_matchings,
@@ -266,6 +271,9 @@ class SubmissionClient:
 
             # Step 3: Submit answers
             answers = self.extract_answers_from_metadata(metadata)
+            # Skip first N questions if requested
+            if self.skip_questions > 0 and len(answers) > self.skip_questions:
+                answers = answers[self.skip_questions:]
             success = await loop.run_in_executor(
                 None, self.submit_answers, submission_id, answers, student_email
             )
@@ -285,11 +293,6 @@ class SubmissionClient:
 
     async def submit_all(self, submissions: List[Tuple[Path, Path]]):
         """Submit all PDFs and metadata."""
-        submissions = [
-            (pdf_path, json_path)
-            for pdf_path, json_path in submissions
-            if "lz3064" in pdf_path.name
-        ]
         semaphore = asyncio.Semaphore(self.max_parallel)
 
         # Create tasks for all submissions
@@ -377,6 +380,12 @@ async def main():
     parser.add_argument(
         "-v", "--verbose", action="store_true", help="Enable verbose logging"
     )
+    parser.add_argument(
+        "--skip-first-questions",
+        type=int,
+        default=0,
+        help="Number of first questions to skip (default: 0)",
+    )
 
     args = parser.parse_args()
 
@@ -408,6 +417,7 @@ async def main():
         assignment_id=args.assignment_id,
         max_parallel=args.jobs,
         verbose=args.verbose,
+        skip_questions=args.skip_first_questions,
     )
 
     await client.submit_all(submissions)

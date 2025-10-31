@@ -1,1 +1,0 @@
-Exception creating submission for lz3064@columbia.edu: HTTPSConnectionPool(host='api.pensieve.co', port=443): Read timed out. (read timeout=60)

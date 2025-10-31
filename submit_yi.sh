@@ -1,15 +1,17 @@
 #!/bin/bash
 
 # Configuration - UPDATE THESE VALUES
-BASE_DIR="/Users/qria/Downloads/HW 1 submissions"
+BASE_DIR="/Users/qria/Downloads/Midterm1Submissions"
 CLAZZ_ID="columbia_ieore4100_fa25"  # e.g., data100_su25
-ASSIGNMENT_ID="c1b5425f-db02-4a34-89fb-23443c952024"  # Get from URL: /my-assignments/{assignment_id}
-
+ASSIGNMENT_ID="944a4f15-2a3f-40f2-af87-083a72de430d"  #Midterm 1
 # API key (default provided, change if needed)
 API_KEY="sk_live_Zl3ZEISWxdi-seojWJ8L0BlVcvOsGFuJ"
 
 # Number of parallel jobs
-JOBS=1
+JOBS=5
+
+# Number of first questions to skip (0 = don't skip any)
+SKIP_FIRST_QUESTIONS=2
 
 # Color codes for output
 GREEN='\033[0;32m'
@@ -21,6 +23,7 @@ echo "Base directory: $BASE_DIR"
 echo "Class ID: $CLAZZ_ID"
 echo "Assignment ID: $ASSIGNMENT_ID"
 echo "Parallel jobs: $JOBS"
+echo "Skip first questions: $SKIP_FIRST_QUESTIONS"
 echo "----------------------------------------"
 
 # Check if required parameters are set
@@ -35,7 +38,8 @@ poetry run python submit_yi.py \
     --api-key "$API_KEY" \
     --clazz-id "$CLAZZ_ID" \
     --assignment-id "$ASSIGNMENT_ID" \
-    --jobs $JOBS
+    --jobs $JOBS \
+    --skip-first-questions $SKIP_FIRST_QUESTIONS
 
 echo ""
 echo -e "${GREEN}Done!${NC}"

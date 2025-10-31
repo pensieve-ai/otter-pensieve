@@ -13,15 +13,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-try:
-    from tqdm.asyncio import tqdm
-except ImportError:
-    print("Installing tqdm for progress tracking...")
-    import subprocess
-
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "tqdm"])
-    from tqdm.asyncio import tqdm
-
+from tqdm.asyncio import tqdm
 
 class NotebookProcessor:
     """Process notebooks in parallel with async/await."""
@@ -253,7 +245,7 @@ def generate_csv(output_dir: Path, csv_path: Path):
     print("Generating CSV file...")
 
     # Find all JSON files in the output directory
-    json_files = list(output_dir.glob("*.json"))
+    json_files = list[Path](output_dir.glob("*.json"))
 
     if not json_files:
         print("No JSON files found. Skipping CSV generation.")
