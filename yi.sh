@@ -1,7 +1,9 @@
 #!/bin/bash
 
 # Base directory containing all submissions
-BASE_DIR="/Users/qria/Downloads/HW3submissions"
+BASE_DIR="/Users/qria/Downloads/HW1-1"
+# BASE_DIR="/Users/qria/Downloads/HW1-2"
+# BASE_DIR="/Users/qria/Downloads/HW1-3"
 
 # Working directory for otter-pensieve
 WORKING_DIR="/Users/qria/otter-pensieve"

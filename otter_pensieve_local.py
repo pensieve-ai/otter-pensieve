@@ -8,7 +8,9 @@ import argparse
 import copy
 import io
 import json
+import logging
 import re
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import (
@@ -68,8 +70,8 @@ _BEGIN_QUESTION_PATTERN = re.compile(r"<!--\s*BEGIN QUESTION\s*-->")
 _END_QUESTION_PATTERN = re.compile(r"<!--\s*END QUESTION\s*-->")
 
 # Alternative format with markdown headers (# Q1, # Q2, ## Q3, etc.)
-# Matches any number of # followed by Q and digits, optionally followed by more text
-_QUESTION_HEADER_PATTERN = re.compile(r"^#+\s*(Q|Question)\s*\d+", re.MULTILINE)
+# Matches any number of # followed by Q and optional digits, optionally followed by more text
+_QUESTION_HEADER_PATTERN = re.compile(r"^#+\s*(Q|Questions?)\s*(\d+)?", re.MULTILINE)
 
 
 # Helper functions
@@ -85,6 +87,79 @@ def get_cell_source_as_list(cell: NotebookCellNode) -> List[str]:
 def get_cell_source_as_str(cell: NotebookCellNode) -> str:
     """Convert cell source to single string."""
     return "".join(get_cell_source_as_list(cell))
+
+
+def split_markdown_cells_with_questions(
+    notebook: nbformat.NotebookNode,
+) -> nbformat.NotebookNode:
+    """
+    Preprocess notebook to split markdown cells containing '^#+ Questions'.
+    Returns modified notebook with split cells.
+    """
+    cells = notebook["cells"]
+    modified = False
+    new_cells = []
+
+    for cell in cells:
+        if not cell.get("id"):
+            # Silence MissingIDFieldWarning
+            cell["id"] = str(uuid.uuid4())
+
+        if cell["cell_type"] == "markdown":
+            source = cell["source"]
+            if isinstance(source, str):
+                source_lines = source.splitlines(keepends=True)
+            else:
+                source_lines = source
+
+            # Check if cell contains Questions pattern
+            source_str = "".join(source_lines)
+            match = _QUESTION_HEADER_PATTERN.search(source_str)
+
+            if match:
+                # Find the line index where the match occurs
+                match_start = match.start()
+                line_index = source_str[:match_start].count("\n")
+
+                # Split the cell at this point
+                before_lines = source_lines[:line_index]
+                after_lines = source_lines[line_index:]
+
+                # Create first cell (before 'Questions' header)
+                # Keep original cell ID if it exists
+                if before_lines:
+                    first_cell = {
+                        **cell,
+                        "source": "".join(before_lines).rstrip(),
+                    }
+                    new_cells.append(first_cell)
+
+                # Create second cell (starting with 'Questions' header)
+                # Generate a new unique ID to avoid duplicate IDs
+                if after_lines:
+                    second_cell = {
+                        **cell,
+                        "source": "".join(after_lines),
+                        "id": str(uuid.uuid4()),  # Generate unique ID for second cell
+                    }
+                    new_cells.append(second_cell)
+
+                modified = True
+            else:
+                # No split needed, keep cell as-is
+                new_cells.append(cell)
+        else:
+            # Not a markdown cell, keep as-is
+            new_cells.append(cell)
+
+    # If no modifications were made, return original notebook
+    if not modified:
+        return notebook
+
+    # Create modified notebook
+    modified_notebook = copy.deepcopy(notebook)
+    modified_notebook["cells"] = new_cells
+    return modified_notebook
 
 
 # Notebook parsing
@@ -211,9 +286,10 @@ def render_notebook(notebook: nbformat.NotebookNode) -> bytes:
 
     # This template is a copy of otter html template, but with <pre> tags wrapped text wrapping
     TEMPLATE_DIR = Path(__file__).parent / "templates"
-    nbconvert.TemplateExporter.extra_template_basedirs = [str(TEMPLATE_DIR)]
-    nbconvert.TemplateExporter.template_name = "via_html"
+
     exporter = WebPDFExporter()
+    exporter.template_name = "via_html"
+    exporter.extra_template_basedirs = [str(TEMPLATE_DIR)]
     pdf, _ = exporter.from_notebook_node(notebook)
     return pdf
 
@@ -385,6 +461,9 @@ def process_notebook(
     # Load notebook
     with open(notebook_path) as f:
         notebook = nbformat.read(f, as_version=4)
+
+    # Preprocess notebook: split markdown cells containing '^#+ Questions'
+    notebook = split_markdown_cells_with_questions(notebook)
 
     # Parse questions
     parsed_notebook = parse_notebook(notebook)
