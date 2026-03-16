@@ -1,19 +1,12 @@
 #!/bin/bash
 
-# Base directory containing all submissions
-BASE_DIR="/Users/qria/Downloads/HW1-1"
-# BASE_DIR="/Users/qria/Downloads/HW1-2"
-# BASE_DIR="/Users/qria/Downloads/HW1-3"
+# Base directories containing submissions
+BASE_DIRS=(
+    "/Users/qria/Downloads/midterm"
+)
 
 # Working directory for otter-pensieve
 WORKING_DIR="/Users/qria/otter-pensieve"
-
-# Output CSV file (set to empty string to disable CSV generation)
-OUTPUT_CSV="$BASE_DIR/_rendered/answers.csv"
-
-# Counter for processed files
-processed=0
-failed=0
 
 # Color codes for output
 GREEN='\033[0;32m'
@@ -21,78 +14,87 @@ RED='\033[0;31m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-echo "Starting batch rendering of IPython notebooks..."
-echo "Base directory: $BASE_DIR"
-echo "----------------------------------------"
+total_processed=0
+total_failed=0
 
-# Find all .ipynb files matching the pattern
-find "$BASE_DIR" -type f -name "*.ipynb" | while read -r notebook_path; do
-    # Extract the user email and notebook name from the path
-    # Path format: .../HW 1 submissions/{userEmail}/Exercise 1.ipynb
-
-    # Get the relative path from base directory
-    rel_path="${notebook_path#$BASE_DIR/}"
-
-    # Extract user email (first directory)
-    user_email=$(echo "$rel_path" | cut -d'/' -f1)
-
-    # Extract notebook filename (e.g., "Exercise 1.ipynb")
-    notebook_filename=$(basename "$notebook_path")
-    notebook_name="${notebook_filename%.ipynb}"
-
-    # Skip if it's already a rendered directory
-    if [[ "$user_email" == *"_rendered" ]]; then
-        continue
-    fi
-
-    # Create output directory if it doesn't exist
-    output_dir="$BASE_DIR/_rendered"
-    mkdir -p "$output_dir"
-
-    # Sanitize email for filename (replace @ and . with _)
-    sanitized_email=$(echo "$user_email" | sed 's/@/_/g' | sed 's/\./_/g')
-
-    # Define output paths
-    output_pdf="$output_dir/${sanitized_email}_${notebook_name}.pdf"
-    output_json="$output_dir/${sanitized_email}_${notebook_name}.json"
-
-    echo -e "${YELLOW}Processing:${NC} $user_email / $notebook_name"
-    echo "  Input:  $notebook_path"
-    echo "  Output: $output_pdf"
-    echo "         $output_json"
-
-    # Change to working directory and run the command
-    cd "$WORKING_DIR" || exit 1
-
-    # Run the poetry command
-    echo "  Command: poetry run python otter_pensieve_local.py \"$notebook_path\" -o \"$output_pdf\" -m \"$output_json\""
-    if poetry run python otter_pensieve_local.py "$notebook_path" -o "$output_pdf" -m "$output_json" 2>/dev/null; then
-        echo -e "${GREEN}  ✓ Successfully rendered${NC}"
-        ((processed++))
-    else
-        echo -e "${RED}  ✗ Failed to render${NC}"
-        ((failed++))
-    fi
-
-    echo "----------------------------------------"
-done
-
-# Final summary
-echo ""
-echo "Rendering complete!"
-echo -e "${GREEN}Successfully processed: $processed notebooks${NC}"
-if [ $failed -gt 0 ]; then
-    echo -e "${RED}Failed: $failed notebooks${NC}"
-fi
-
-# Generate CSV if OUTPUT_CSV is set
-if [ -n "$OUTPUT_CSV" ]; then
+for BASE_DIR in "${BASE_DIRS[@]}"; do
     echo ""
-    echo "Generating CSV file..."
-    cd "$WORKING_DIR" || exit 1
+    echo -e "${YELLOW}========================================${NC}"
+    echo -e "${YELLOW}Processing: $BASE_DIR${NC}"
+    echo -e "${YELLOW}========================================${NC}"
 
-    # Use Python to generate CSV (yi.py has this functionality)
-    python3 - "$BASE_DIR/_rendered" "$OUTPUT_CSV" <<'PYTHON'
+    # Output CSV file (set to empty string to disable CSV generation)
+    OUTPUT_CSV="$BASE_DIR/_rendered/answers.csv"
+
+    processed=0
+    failed=0
+
+    # Find all .ipynb files matching the pattern
+    find "$BASE_DIR" -type f -name "*.ipynb" -not -path "*/.ipynb_checkpoints/*" | while read -r notebook_path; do
+        # Get the relative path from base directory
+        rel_path="${notebook_path#$BASE_DIR/}"
+
+        # Extract user email (first directory)
+        user_email=$(echo "$rel_path" | cut -d'/' -f1)
+
+        # Extract notebook filename (e.g., "Exercise 1.ipynb")
+        notebook_filename=$(basename "$notebook_path")
+        notebook_name="${notebook_filename%.ipynb}"
+
+        # Skip if it's already a rendered directory
+        if [[ "$user_email" == *"_rendered" ]]; then
+            continue
+        fi
+
+        # Create output directory if it doesn't exist
+        output_dir="$BASE_DIR/_rendered"
+        mkdir -p "$output_dir"
+
+        # Sanitize email for filename (replace @ and . with _)
+        sanitized_email=$(echo "$user_email" | sed 's/@/_/g' | sed 's/\./_/g')
+
+        # Define output paths
+        output_pdf="$output_dir/${sanitized_email}_${notebook_name}.pdf"
+        output_json="$output_dir/${sanitized_email}_${notebook_name}.json"
+
+        echo -e "${YELLOW}Processing:${NC} $user_email / $notebook_name"
+        echo "  Input:  $notebook_path"
+        echo "  Output: $output_pdf"
+        echo "         $output_json"
+
+        # Change to working directory and run the command
+        cd "$WORKING_DIR" || exit 1
+
+        # Run the poetry command
+        echo "  Command: poetry run python otter_pensieve_local.py \"$notebook_path\" -o \"$output_pdf\" -m \"$output_json\""
+        if poetry run python otter_pensieve_local.py "$notebook_path" -o "$output_pdf" -m "$output_json" 2>/dev/null; then
+            echo -e "${GREEN}  ✓ Successfully rendered${NC}"
+            ((processed++))
+        else
+            echo -e "${RED}  ✗ Failed to render${NC}"
+            ((failed++))
+        fi
+
+        echo "----------------------------------------"
+    done
+
+    echo ""
+    echo -e "Rendering complete for ${YELLOW}$BASE_DIR${NC}"
+    echo -e "${GREEN}Successfully processed: $processed notebooks${NC}"
+    if [ $failed -gt 0 ]; then
+        echo -e "${RED}Failed: $failed notebooks${NC}"
+    fi
+
+    ((total_processed += processed))
+    ((total_failed += failed))
+
+    # Generate CSV if OUTPUT_CSV is set
+    if [ -n "$OUTPUT_CSV" ]; then
+        echo ""
+        echo "Generating CSV file..."
+        cd "$WORKING_DIR" || exit 1
+
+        python3 - "$BASE_DIR/_rendered" "$OUTPUT_CSV" <<'PYTHON'
 import sys
 import json
 import csv
@@ -177,4 +179,13 @@ print(f"✓ CSV file created: {csv_path}")
 print(f"  Students: {len(student_data)}")
 print(f"  Questions: {max_questions}")
 PYTHON
+    fi
+done
+
+echo ""
+echo "========================================"
+echo "All batches complete!"
+echo -e "${GREEN}Total processed: $total_processed notebooks${NC}"
+if [ $total_failed -gt 0 ]; then
+    echo -e "${RED}Total failed: $total_failed notebooks${NC}"
 fi
