@@ -18,7 +18,7 @@ from typing_extensions import override
 from otter_pensieve.answer_extraction import extract_answer
 from otter_pensieve.client import Client
 from otter_pensieve.notebook_parsing import parse_notebook
-from otter_pensieve.notebook_rendering import render_notebook
+from otter_pensieve.notebook_rendering import BlankRenderError, render_notebook
 from otter_pensieve.notebook_slicing import slice_notebook
 from otter_pensieve.pdf_merging import merge_pdfs
 
@@ -124,9 +124,15 @@ class PensieveOtterPlugin(AbstractOtterPlugin):
         notebook_slices = [
             slice_notebook(notebook, question) for question in parsed_notebook.questions
         ]
-        notebook_slice_pdfs = [
-            render_notebook(notebook_slice) for notebook_slice in notebook_slices
-        ]
+        try:
+            notebook_slice_pdfs = [
+                render_notebook(notebook_slice) for notebook_slice in notebook_slices
+            ]
+        except BlankRenderError as e:
+            print(f"Failed to render submission PDF: {e}")
+            print("Skipping upload to Pensieve rather than submitting a blank PDF.")
+            print("Rerun the autograder on this submission to try again.", end="\n\n")
+            return
         notebook_pdf = merge_pdfs(notebook_slice_pdfs)
         try:
             submission_id = pensieve.post_submission(notebook_pdf)
